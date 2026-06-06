@@ -14,7 +14,7 @@
 #include <ios> // std::streamsize, forward declaration of std::istream  // IWYU pragma: keep
 #include <cstddef> // std::size_t
 #include <climits> // LLONG_MAX, ULLONG_MAX
-#include <sstream> // std::istringstream  // IWYU pragma: keep
+#include <sstream> // std::stringstream  // IWYU pragma: keep
 #include <string> // std::string
 
 namespace kaitai {
@@ -43,6 +43,13 @@ public:
      * \param io istream object to use for this Kaitai Stream
      */
     kstream(std::istream* io);
+
+    /**
+     * Constructs new Kaitai Stream object, wrapping a given std::iostream.
+     * This constructor is intended for read-write workflows.
+     * \param io iostream object to use for this Kaitai Stream
+     */
+    kstream(std::iostream* io);
 
     /**
      * Constructs new Kaitai Stream object, wrapping a given in-memory data
@@ -133,6 +140,14 @@ public:
 
     //@}
 
+    /** @name Integer numbers (write) */
+    //@{
+
+    void write_s1(int8_t val);
+    void write_u1(uint8_t val);
+
+    //@}
+
     /** @name Floating point numbers */
     //@{
 
@@ -170,6 +185,7 @@ public:
     std::string read_bytes_term(char term, bool include, bool consume, bool eos_error);
     std::string read_bytes_term_multi(std::string term, bool include, bool consume, bool eos_error);
     std::string ensure_fixed_contents(std::string expected);
+    void write_bytes(const std::string& data);
 
     static std::string bytes_strip_right(std::string src, char pad_byte);
     static std::string bytes_terminate(std::string src, char term, bool include);
@@ -345,7 +361,8 @@ public:
 
 private:
     std::istream* m_io;
-    std::istringstream m_io_str;
+    std::ostream* m_io_write;
+    std::stringstream m_io_str;
     int m_bits_left;
     uint64_t m_bits;
 
