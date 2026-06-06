@@ -380,12 +380,102 @@ void kaitai::kstream::write_s1(int8_t val) {
     write_u1(static_cast<uint8_t>(val));
 }
 
+void kaitai::kstream::write_s2be(int16_t val) {
+    write_u2be(static_cast<uint16_t>(val));
+}
+
+void kaitai::kstream::write_s4be(int32_t val) {
+    write_u4be(static_cast<uint32_t>(val));
+}
+
+void kaitai::kstream::write_s8be(int64_t val) {
+    write_u8be(static_cast<uint64_t>(val));
+}
+
+void kaitai::kstream::write_s2le(int16_t val) {
+    write_u2le(static_cast<uint16_t>(val));
+}
+
+void kaitai::kstream::write_s4le(int32_t val) {
+    write_u4le(static_cast<uint32_t>(val));
+}
+
+void kaitai::kstream::write_s8le(int64_t val) {
+    write_u8le(static_cast<uint64_t>(val));
+}
+
 void kaitai::kstream::write_u1(uint8_t val) {
     align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_u1: output stream is not available");
     }
     m_io_write->put(static_cast<char>(val));
+}
+
+void kaitai::kstream::write_u2be(uint16_t val) {
+    align_to_byte();
+    if (m_io_write == 0) {
+        throw std::runtime_error("write_u2be: output stream is not available");
+    }
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    val = bswap_16(val);
+#endif
+    m_io_write->write(reinterpret_cast<const char *>(&val), 2);
+}
+
+void kaitai::kstream::write_u4be(uint32_t val) {
+    align_to_byte();
+    if (m_io_write == 0) {
+        throw std::runtime_error("write_u4be: output stream is not available");
+    }
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    val = bswap_32(val);
+#endif
+    m_io_write->write(reinterpret_cast<const char *>(&val), 4);
+}
+
+void kaitai::kstream::write_u8be(uint64_t val) {
+    align_to_byte();
+    if (m_io_write == 0) {
+        throw std::runtime_error("write_u8be: output stream is not available");
+    }
+#if __BYTE_ORDER == __LITTLE_ENDIAN
+    val = bswap_64(val);
+#endif
+    m_io_write->write(reinterpret_cast<const char *>(&val), 8);
+}
+
+void kaitai::kstream::write_u2le(uint16_t val) {
+    align_to_byte();
+    if (m_io_write == 0) {
+        throw std::runtime_error("write_u2le: output stream is not available");
+    }
+#if __BYTE_ORDER == __BIG_ENDIAN
+    val = bswap_16(val);
+#endif
+    m_io_write->write(reinterpret_cast<const char *>(&val), 2);
+}
+
+void kaitai::kstream::write_u4le(uint32_t val) {
+    align_to_byte();
+    if (m_io_write == 0) {
+        throw std::runtime_error("write_u4le: output stream is not available");
+    }
+#if __BYTE_ORDER == __BIG_ENDIAN
+    val = bswap_32(val);
+#endif
+    m_io_write->write(reinterpret_cast<const char *>(&val), 4);
+}
+
+void kaitai::kstream::write_u8le(uint64_t val) {
+    align_to_byte();
+    if (m_io_write == 0) {
+        throw std::runtime_error("write_u8le: output stream is not available");
+    }
+#if __BYTE_ORDER == __BIG_ENDIAN
+    val = bswap_64(val);
+#endif
+    m_io_write->write(reinterpret_cast<const char *>(&val), 8);
 }
 
 // ========================================================================

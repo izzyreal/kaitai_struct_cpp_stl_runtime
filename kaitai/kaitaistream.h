@@ -144,7 +144,19 @@ public:
     //@{
 
     void write_s1(int8_t val);
+    void write_s2be(int16_t val);
+    void write_s4be(int32_t val);
+    void write_s8be(int64_t val);
+    void write_s2le(int16_t val);
+    void write_s4le(int32_t val);
+    void write_s8le(int64_t val);
     void write_u1(uint8_t val);
+    void write_u2be(uint16_t val);
+    void write_u4be(uint32_t val);
+    void write_u8be(uint64_t val);
+    void write_u2le(uint16_t val);
+    void write_u4le(uint32_t val);
+    void write_u8le(uint64_t val);
 
     //@}
 

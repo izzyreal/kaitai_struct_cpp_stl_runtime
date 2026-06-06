@@ -13,6 +13,7 @@ protected:
     kstream *m__io;
 public:
     kstream *_io() { return m__io; }
+    void _set_io(kstream *io) { m__io = io; }
 };
 
 }
