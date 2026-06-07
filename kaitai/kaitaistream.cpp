@@ -202,14 +202,21 @@ void kaitai::kstream::seek(uint64_t pos) {
 
 uint64_t kaitai::kstream::pos() {
     std::istream::pos_type read_pos = m_io->tellg();
+    std::ostream::pos_type write_pos =
+        (m_io_write != 0) ? m_io_write->tellp() : std::ostream::pos_type(-1);
+
+    if (read_pos != std::istream::pos_type(-1) && write_pos != std::ostream::pos_type(-1)) {
+        std::streamoff max_pos = std::max(
+            static_cast<std::streamoff>(read_pos),
+            static_cast<std::streamoff>(write_pos)
+        );
+        return max_pos + static_cast<std::streamoff>((m_bits_write_mode && m_bits_left > 0) ? 1 : 0);
+    }
     if (read_pos != std::istream::pos_type(-1)) {
         return read_pos + static_cast<std::streamoff>((m_bits_write_mode && m_bits_left > 0) ? 1 : 0);
     }
-    if (m_io_write != 0) {
-        std::ostream::pos_type write_pos = m_io_write->tellp();
-        if (write_pos != std::ostream::pos_type(-1)) {
-            return write_pos + static_cast<std::streamoff>((m_bits_write_mode && m_bits_left > 0) ? 1 : 0);
-        }
+    if (write_pos != std::ostream::pos_type(-1)) {
+        return write_pos + static_cast<std::streamoff>((m_bits_write_mode && m_bits_left > 0) ? 1 : 0);
     }
     throw std::runtime_error("pos: unable to determine stream position");
 }
