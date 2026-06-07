@@ -186,6 +186,9 @@ public:
     uint64_t read_bits_int_be(int n);
     uint64_t read_bits_int(int n);
     uint64_t read_bits_int_le(int n);
+    void write_align_to_byte();
+    void write_bits_int_be(int n, uint64_t val);
+    void write_bits_int_le(int n, uint64_t val);
 
     //@}
 
@@ -198,6 +201,7 @@ public:
     std::string read_bytes_term_multi(std::string term, bool include, bool consume, bool eos_error);
     std::string ensure_fixed_contents(std::string expected);
     void write_bytes(const std::string& data);
+    std::string to_byte_array() const;
 
     static std::string bytes_strip_right(std::string src, char pad_byte);
     static std::string bytes_terminate(std::string src, char term, bool include);
@@ -377,6 +381,8 @@ private:
     std::stringstream m_io_str;
     int m_bits_left;
     uint64_t m_bits;
+    bool m_bits_write_mode;
+    bool m_bits_le;
 
     void init();
     void exceptions_enable() const;

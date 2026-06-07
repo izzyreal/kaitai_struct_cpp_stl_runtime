@@ -138,6 +138,8 @@ kaitai::kstream::kstream(const std::string &data) : m_io_str(data) {
 void kaitai::kstream::init() {
     exceptions_enable();
     align_to_byte();
+    m_bits_write_mode = false;
+    m_bits_le = false;
 }
 
 void kaitai::kstream::close() {
@@ -165,7 +167,7 @@ void kaitai::kstream::exceptions_enable() const {
 // ========================================================================
 
 bool kaitai::kstream::is_eof() const {
-    if (m_bits_left > 0) {
+    if (!m_bits_write_mode && m_bits_left > 0) {
         return false;
     }
     char t;
@@ -183,11 +185,17 @@ bool kaitai::kstream::is_eof() const {
 }
 
 void kaitai::kstream::seek(uint64_t pos) {
-    align_to_byte();
+    if (m_bits_write_mode) {
+        write_align_to_byte();
+    } else {
+        align_to_byte();
+    }
     if (m_io != 0) {
+        m_io->clear();
         m_io->seekg(pos);
     }
     if (m_io_write != 0) {
+        m_io_write->clear();
         m_io_write->seekp(pos);
     }
 }
@@ -195,12 +203,12 @@ void kaitai::kstream::seek(uint64_t pos) {
 uint64_t kaitai::kstream::pos() {
     std::istream::pos_type read_pos = m_io->tellg();
     if (read_pos != std::istream::pos_type(-1)) {
-        return read_pos;
+        return read_pos + static_cast<std::streamoff>((m_bits_write_mode && m_bits_left > 0) ? 1 : 0);
     }
     if (m_io_write != 0) {
         std::ostream::pos_type write_pos = m_io_write->tellp();
         if (write_pos != std::ostream::pos_type(-1)) {
-            return write_pos;
+            return write_pos + static_cast<std::streamoff>((m_bits_write_mode && m_bits_left > 0) ? 1 : 0);
         }
     }
     throw std::runtime_error("pos: unable to determine stream position");
@@ -405,7 +413,7 @@ void kaitai::kstream::write_s8le(int64_t val) {
 }
 
 void kaitai::kstream::write_u1(uint8_t val) {
-    align_to_byte();
+    write_align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_u1: output stream is not available");
     }
@@ -413,7 +421,7 @@ void kaitai::kstream::write_u1(uint8_t val) {
 }
 
 void kaitai::kstream::write_u2be(uint16_t val) {
-    align_to_byte();
+    write_align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_u2be: output stream is not available");
     }
@@ -424,7 +432,7 @@ void kaitai::kstream::write_u2be(uint16_t val) {
 }
 
 void kaitai::kstream::write_u4be(uint32_t val) {
-    align_to_byte();
+    write_align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_u4be: output stream is not available");
     }
@@ -435,7 +443,7 @@ void kaitai::kstream::write_u4be(uint32_t val) {
 }
 
 void kaitai::kstream::write_u8be(uint64_t val) {
-    align_to_byte();
+    write_align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_u8be: output stream is not available");
     }
@@ -446,7 +454,7 @@ void kaitai::kstream::write_u8be(uint64_t val) {
 }
 
 void kaitai::kstream::write_u2le(uint16_t val) {
-    align_to_byte();
+    write_align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_u2le: output stream is not available");
     }
@@ -457,7 +465,7 @@ void kaitai::kstream::write_u2le(uint16_t val) {
 }
 
 void kaitai::kstream::write_u4le(uint32_t val) {
-    align_to_byte();
+    write_align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_u4le: output stream is not available");
     }
@@ -468,7 +476,7 @@ void kaitai::kstream::write_u4le(uint32_t val) {
 }
 
 void kaitai::kstream::write_u8le(uint64_t val) {
-    align_to_byte();
+    write_align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_u8le: output stream is not available");
     }
@@ -537,9 +545,11 @@ double kaitai::kstream::read_f8le() {
 void kaitai::kstream::align_to_byte() {
     m_bits_left = 0;
     m_bits = 0;
+    m_bits_write_mode = false;
 }
 
 uint64_t kaitai::kstream::read_bits_int_be(int n) {
+    m_bits_write_mode = false;
     uint64_t res = 0;
 
     int bits_needed = n - m_bits_left;
@@ -577,6 +587,7 @@ uint64_t kaitai::kstream::read_bits_int(int n) {
 }
 
 uint64_t kaitai::kstream::read_bits_int_le(int n) {
+    m_bits_write_mode = false;
     uint64_t res = 0;
     int bits_needed = n - m_bits_left;
 
@@ -614,6 +625,86 @@ uint64_t kaitai::kstream::read_bits_int_le(int n) {
     }
     // if `n == 64`, do nothing
     return res;
+}
+
+void kaitai::kstream::write_align_to_byte() {
+    if (m_bits_left > 0) {
+        uint8_t b = static_cast<uint8_t>(m_bits);
+        if (!m_bits_le) {
+            b <<= 8 - m_bits_left;
+        }
+        align_to_byte();
+        if (m_io_write == 0) {
+            throw std::runtime_error("write_align_to_byte: output stream is not available");
+        }
+        m_io_write->put(static_cast<char>(b));
+    }
+}
+
+void kaitai::kstream::write_bits_int_be(int n, uint64_t val) {
+    m_bits_le = false;
+    m_bits_write_mode = true;
+
+    if (n < 64) {
+        uint64_t mask = (static_cast<uint64_t>(1) << n) - 1;
+        val &= mask;
+    }
+
+    int bits_to_write = m_bits_left + n;
+    int bytes_to_write = bits_to_write / 8;
+    m_bits_left = bits_to_write & 7;
+
+    if (bytes_to_write > 0) {
+        uint8_t buf[8];
+
+        uint64_t mask = (static_cast<uint64_t>(1) << m_bits_left) - 1;
+        uint64_t new_bits = val & mask;
+        val = val >> m_bits_left | (n - m_bits_left < 64 ? m_bits << (n - m_bits_left) : 0);
+        m_bits = new_bits;
+
+        for (int i = bytes_to_write - 1; i >= 0; i--) {
+            buf[i] = static_cast<uint8_t>(val & 0xff);
+            val >>= 8;
+        }
+        if (m_io_write == 0) {
+            throw std::runtime_error("write_bits_int_be: output stream is not available");
+        }
+        m_io_write->write(reinterpret_cast<const char *>(buf), bytes_to_write);
+    } else {
+        m_bits = m_bits << n | val;
+    }
+}
+
+void kaitai::kstream::write_bits_int_le(int n, uint64_t val) {
+    m_bits_le = true;
+    m_bits_write_mode = true;
+
+    int bits_to_write = m_bits_left + n;
+    int bytes_to_write = bits_to_write / 8;
+    int old_bits_left = m_bits_left;
+    m_bits_left = bits_to_write & 7;
+
+    if (bytes_to_write > 0) {
+        uint8_t buf[8];
+
+        uint64_t new_bits = n - m_bits_left < 64 ? val >> (n - m_bits_left) : 0;
+        val = val << old_bits_left | m_bits;
+        m_bits = new_bits;
+
+        for (int i = 0; i < bytes_to_write; i++) {
+            buf[i] = static_cast<uint8_t>(val & 0xff);
+            val >>= 8;
+        }
+        if (m_io_write == 0) {
+            throw std::runtime_error("write_bits_int_le: output stream is not available");
+        }
+        m_io_write->write(reinterpret_cast<const char *>(buf), bytes_to_write);
+    } else {
+        m_bits |= val << old_bits_left;
+    }
+
+    uint64_t mask = (static_cast<uint64_t>(1) << m_bits_left) - 1;
+    m_bits &= mask;
 }
 
 // ========================================================================
@@ -727,13 +818,17 @@ std::string kaitai::kstream::ensure_fixed_contents(std::string expected) {
 }
 
 void kaitai::kstream::write_bytes(const std::string& data) {
-    align_to_byte();
+    write_align_to_byte();
     if (m_io_write == 0) {
         throw std::runtime_error("write_bytes: output stream is not available");
     }
     if (!data.empty()) {
         m_io_write->write(data.data(), static_cast<std::streamsize>(data.size()));
     }
+}
+
+std::string kaitai::kstream::to_byte_array() const {
+    return m_io_str.str();
 }
 
 std::string kaitai::kstream::bytes_strip_right(std::string src, char pad_byte) {
