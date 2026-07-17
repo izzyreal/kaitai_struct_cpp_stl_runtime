@@ -41,6 +41,17 @@ TEST(KaitaiStreamTest, read_u1)
     EXPECT_EQ(ks.read_u1(), 128);
 }
 
+TEST(KaitaiStreamTest, string_backed_is_eof)
+{
+    kaitai::kstream ks(std::string("ab", 2));
+    EXPECT_FALSE(ks.is_eof());
+    EXPECT_EQ(ks.read_u1(), 'a');
+    EXPECT_FALSE(ks.is_eof());
+    EXPECT_EQ(ks.read_u1(), 'b');
+    EXPECT_TRUE(ks.is_eof());
+    EXPECT_TRUE(ks.is_eof());
+}
+
 TEST(KaitaiStreamTest, read_f4le)
 {
     SETUP_STREAM(208, 15, 73, 64);

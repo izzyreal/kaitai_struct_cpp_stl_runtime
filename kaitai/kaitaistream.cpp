@@ -172,16 +172,26 @@ bool kaitai::kstream::is_eof() const {
     }
     char t;
     m_io->exceptions(std::istream::badbit);
-    m_io->get(t);
-    if (m_io->eof()) {
-        m_io->clear();
-        exceptions_enable();
-        return true;
-    } else {
-        m_io->unget();
-        exceptions_enable();
-        return false;
+    if (m_io_write != 0) {
+        m_io_write->exceptions(std::ostream::badbit);
     }
+    m_io->get(t);
+    const bool result = m_io->eof();
+    m_io->clear();
+    if (m_io_write != 0) {
+        m_io_write->clear();
+    }
+
+    if (!result) {
+        m_io->unget();
+        m_io->clear();
+        if (m_io_write != 0) {
+            m_io_write->clear();
+        }
+    }
+
+    exceptions_enable();
+    return result;
 }
 
 void kaitai::kstream::seek(uint64_t pos) {
