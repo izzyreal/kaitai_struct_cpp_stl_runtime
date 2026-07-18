@@ -728,15 +728,22 @@ void kaitai::kstream::write_bits_int_le(int n, uint64_t val) {
 // Byte arrays
 // ========================================================================
 
+static std::size_t streamsize_to_size_t(std::streamsize len, const char *operation) {
+    if (len < 0) {
+        throw std::runtime_error(std::string(operation) + ": requested a negative amount");
+    }
+
+    const std::size_t result = static_cast<std::size_t>(len);
+    if (static_cast<std::streamsize>(result) != len) {
+        throw std::length_error(std::string(operation) + ": requested amount is too large");
+    }
+    return result;
+}
+
 std::string kaitai::kstream::read_bytes(std::streamsize len) {
     align_to_byte();
-    std::vector<char> result(len);
-
-    // NOTE: streamsize type is signed, negative values are only *supposed* to not be used.
-    // https://en.cppreference.com/w/cpp/io/streamsize
-    if (len < 0) {
-        throw std::runtime_error("read_bytes: requested a negative amount");
-    }
+    const std::size_t result_size = streamsize_to_size_t(len, "read_bytes");
+    std::vector<char> result(result_size);
 
     if (len > 0) {
         m_io->read(&result[0], len);
@@ -750,14 +757,21 @@ std::string kaitai::kstream::read_bytes_full() {
     std::istream::pos_type p1 = m_io->tellg();
     m_io->seekg(0, std::istream::end);
     std::istream::pos_type p2 = m_io->tellg();
-    std::size_t len = p2 - p1;
+    const std::streamoff remaining = p2 - p1;
+    const std::streamsize read_len = static_cast<std::streamsize>(remaining);
+    if (static_cast<std::streamoff>(read_len) != remaining) {
+        throw std::length_error("read_bytes_full: requested amount is too large");
+    }
+    const std::size_t result_size = streamsize_to_size_t(read_len, "read_bytes_full");
 
     // NOTE: this requires `std::string` to be backed by a contiguous buffer. Officially,
     // it's only a requirement since C++11 (C++98 and C++03 didn't have this requirement),
     // but all major implementations had contiguous buffers anyway.
-    std::string result(len, ' ');
+    std::string result(result_size, ' ');
     m_io->seekg(p1);
-    m_io->read(&result[0], len);
+    if (read_len > 0) {
+        m_io->read(&result[0], read_len);
+    }
 
     return result;
 }

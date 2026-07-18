@@ -52,6 +52,31 @@ TEST(KaitaiStreamTest, string_backed_is_eof)
     EXPECT_TRUE(ks.is_eof());
 }
 
+TEST(KaitaiStreamTest, read_bytes_rejects_negative_length)
+{
+    SETUP_STREAM(1, 2, 3)
+    try {
+        ks.read_bytes(-1);
+        FAIL() << "Expected runtime_error exception";
+    } catch (const std::runtime_error& e) {
+        EXPECT_EQ(e.what(), std::string("read_bytes: requested a negative amount"));
+    }
+}
+
+TEST(KaitaiStreamTest, read_bytes_full_reads_remaining_bytes)
+{
+    SETUP_STREAM(1, 2, 3)
+    EXPECT_EQ(ks.read_u1(), 1);
+    EXPECT_EQ(ks.read_bytes_full(), std::string("\x02\x03", 2));
+}
+
+TEST(KaitaiStreamTest, read_bytes_full_reads_empty_stream)
+{
+    std::istringstream is("");
+    kaitai::kstream ks(&is);
+    EXPECT_EQ(ks.read_bytes_full(), "");
+}
+
 TEST(KaitaiStreamTest, read_f4le)
 {
     SETUP_STREAM(208, 15, 73, 64);
